@@ -206,13 +206,27 @@ recoveryButton.hidden = true;
 recoveryButton.style.cssText = "padding:12px 18px;cursor:pointer;";
 loginScreen.appendChild(recoveryButton);
 
+supabaseClient.auth.onAuthStateChange((event) => {function setRecoveryMode(enabled) {
+loginScreen.querySelector("h2").hidden = enabled;
+loginScreen.querySelectorAll("label").forEach(el => {
+    el.hidden = enabled;
+});
+
+document.getElementById("login-email").hidden = enabled;
+document.getElementById("login-password").hidden = enabled;
+document.getElementById("login-button").hidden = enabled;
+loginMessage.hidden = enabled;
+
+recoveryTitle.hidden = !enabled;
+recoveryPassword.hidden = !enabled;
+recoveryButton.hidden = !enabled;
+recoveryMessage.hidden = !enabled;
+}
+
 supabaseClient.auth.onAuthStateChange((event) => {
 if (event === "PASSWORD_RECOVERY") {
     loginScreen.hidden = false;
-    recoveryTitle.hidden = false;
-    recoveryPassword.hidden = false;
-    recoveryButton.hidden = false;
-    loginMessage.textContent = "";
+    setRecoveryMode(true);
     recoveryMessage.textContent = "Введите новый пароль (не менее 8 символов).";
 }
 });
@@ -233,6 +247,7 @@ if (error) {
 }
 
 recoveryMessage.textContent = "Пароль изменён! Теперь войдите с новым паролем.";
+  setRecoveryMode(false);
 recoveryTitle.hidden = true;
 recoveryPassword.hidden = true;
 recoveryButton.hidden = true;
