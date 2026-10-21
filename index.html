@@ -2,508 +2,617 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AutoQueue</title>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <style>
-    * {
-     box-sizing: border-box;
-    }
-
-    body {
-     margin: 0;
-     padding: 20px;
-     font-family: Arial, sans-serif;
-     background: #f3f5f9;
-     color: #202938;
-    }
-
-    .container {
-     max-width: 1000px;
-     margin: 0 auto;
-    }
-
-    .panel {
-     background: white;
-     padding: 24px;
-     border-radius: 14px;
-     margin-bottom: 20px;
-     box-shadow: 0 3px 14px rgba(0, 0, 0, 0.06);
-    }
-
-    h1, h2, h3 {
-     margin-top: 0;
-    }
-
-    input, textarea, select {
-     display: block;
-     width: 100%;
-     padding: 12px;
-     margin: 8px 0 16px;
-     border: 1px solid #ccd3df;
-     border-radius: 8px;
-     font-size: 16px;
-    }
-
-    button {
-     border: none;
-     border-radius: 8px;
-     padding: 12px 18px;
-     font-size: 15px;
-     cursor: pointer;
-     background: #2459d3;
-     color: white;
-     margin: 4px 4px 4px 0;
-    }
-
-    button:hover {
-     opacity: 0.9;
-    }
-
-    button:disabled {
-     opacity: 0.5;
-     cursor: not-allowed;
-    }
-
-    .secondary {
-     background: #64748b;
-    }
-
-    .danger {
-     background: #c0392b;
-    }
-
-    .success {
-     background: #198754;
-    }
-
-    .customer {
-     padding: 16px;
-     border: 1px solid #e0e5ed;
-     border-radius: 10px;
-     margin: 12px 0;
-     background: #fff;
-    }
-
-    .muted {
-     color: #64748b;
-     font-size: 14px;
-    }
-
-    .status {
-     display: inline-block;
-     padding: 5px 9px;
-     border-radius: 20px;
-     background: #e8eefc;
-     font-size: 13px;
-     margin: 5px 0;
-    }
-
-    #login-screen {
-     max-width: 440px;
-     margin: 6vh auto;
-    }
-
-    #login-message, #recovery-message {
-     overflow-wrap: anywhere;
-    }
-
-    [hidden] {
-     display: none !important;
-    }
-
-    @media (max-width: 600px) {
-     body {
-        padding: 12px;
-     }
-
-     .panel {
-        padding: 17px;
-     }
-    }
+*{box-sizing:border-box}
+body{margin:0;padding:16px;font-family:Arial,sans-serif;background:#f3f5f9;color:#202938}
+.container{max-width:1100px;margin:auto}
+.panel{background:white;padding:22px;border-radius:14px;margin-bottom:18px;box-shadow:0 3px 14px #0000000b}
+h1,h2,h3{margin-top:0}
+input,textarea,select{display:block;width:100%;padding:12px;margin:8px 0 14px;border:1px solid #ccd3df;border-radius:8px;font-size:16px;background:white}
+button{border:0;border-radius:8px;padding:11px 15px;font-size:14px;cursor:pointer;background:#2459d3;color:white;margin:4px 4px 4px 0}
+button:disabled{opacity:.5;cursor:not-allowed}
+.secondary{background:#64748b}.danger{background:#c0392b}.success{background:#198754}.warning{background:#b7791f}
+.customer{padding:16px;border:1px solid #e0e5ed;border-radius:10px;margin:12px 0;background:#fff}
+.muted{color:#64748b;font-size:14px}
+.status{display:inline-block;padding:5px 9px;border-radius:20px;background:#e8eefc;font-size:13px;margin:5px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>*{flex:1;min-width:180px}
+#login-screen{max-width:440px;margin:6vh auto}
+.message{white-space:pre-wrap;overflow-wrap:anywhere}
+[hidden]{display:none!important}
+hr{border:0;border-top:1px solid #e2e8f0;margin:20px 0}
+@media(max-width:600px){body{padding:10px}.panel{padding:16px}.row>*{min-width:100%}}
 </style>
 </head>
-
 <body>
 
-<!-- ЭКРАН ВХОДА -->
 <section id="login-screen" class="panel">
-    <h2>Вход в AutoQueue</h2>
-
-    <label for="login-email">Email</label>
-    <input
-     id="login-email"
-     type="email"
-     placeholder="Введите email"
-     autocomplete="username"
-    >
-
-    <label for="login-password">Пароль</label>
-    <input
-     id="login-password"
-     type="password"
-     placeholder="Введите пароль"
-     autocomplete="current-password"
-    >
-
-    <button id="login-button" type="button">Войти</button>
-
-    <p id="login-message" role="status"></p>
-
-    <hr>
-
-    <p class="muted">
-     Для восстановления пароля используйте ссылку из письма Supabase.
-     Если ссылка действительна, здесь появится поле для нового пароля.
-    </p>
-
-    <h3 id="recovery-title" hidden>Установка нового пароля</h3>
-
-    <input
-     id="recovery-password"
-     type="password"
-     placeholder="Новый пароль — минимум 8 символов"
-     autocomplete="new-password"
-     hidden
-    >
-
-    <button id="recovery-button" type="button" hidden>
-     Сохранить новый пароль
-    </button>
-
-    <p id="recovery-message" role="status" hidden></p>
+<h2 id="login-heading">Вход в AutoQueue</h2>
+<label for="login-email">Email</label>
+<input id="login-email" type="email" autocomplete="username" placeholder="Введите email">
+<label for="login-password">Пароль</label>
+<input id="login-password" type="password" autocomplete="current-password" placeholder="Введите пароль">
+<button id="login-button">Войти</button>
+<p id="login-message" class="message" role="status"></p>
+<hr>
+<p id="recovery-help" class="muted">Для восстановления пароля откройте последнюю ссылку из письма Supabase.</p>
+<div id="recovery-panel" hidden>
+<h3>Установка нового пароля</h3>
+<label for="recovery-password">Новый пароль</label>
+<input id="recovery-password" type="password" autocomplete="new-password" placeholder="Не менее 8 символов">
+<button id="recovery-button">Сохранить новый пароль</button>
+<p id="recovery-message" class="message" role="status"></p>
+</div>
 </section>
 
-
-<!-- ОСНОВНОЕ ПРИЛОЖЕНИЕ -->
 <div id="app-screen" hidden>
-    <div class="container">
+<div class="container">
+<header class="panel">
+<div class="row">
+<div>
+<h1>AutoQueue</h1>
+<p>Общая очередь клиентов автосалона</p>
+<p id="staff-info" class="muted"></p>
+<p id="connection-status" class="muted">Подключение…</p>
+</div>
+<div style="text-align:right">
+<button id="refresh-button" class="secondary">Обновить</button>
+<button id="logout-button" class="secondary">Выйти</button>
+</div>
+</div>
+</header>
 
-     <header class="panel">
-        <h1>AutoQueue</h1>
-        <p>Система управления очередью клиентов</p>
-        <p id="staff-info" class="muted"></p>
-        <button id="logout-button" class="secondary" type="button">
-         Выйти
-        </button>
-     </header>
+<section id="add-panel" class="panel" hidden>
+<h2>Добавить клиента</h2>
+<label for="customer-name">Имя или описание клиента</label>
+<input id="customer-name" maxlength="200" placeholder="Например, Иван или клиент №1">
+<label for="customer-note">Комментарий</label>
+<textarea id="customer-note" rows="2" maxlength="2000" placeholder="Необязательно"></textarea>
+<button id="add-customer-button">Добавить в очередь</button>
+</section>
 
-     <main>
-        <section class="panel">
-         <h2>Добавить клиента</h2>
+<section id="assign-panel" class="panel" hidden>
+<h2>Назначение менеджеров</h2>
+<p class="muted">Выбери менеджера вручную или используй простую ротацию по числу текущих назначений.</p>
+<label for="manager-select">Менеджер</label>
+<select id="manager-select"></select>
+<p id="manager-message" class="muted"></p>
+</section>
 
-         <label for="customer-name">Имя или описание клиента</label>
-         <input
-            id="customer-name"
-            type="text"
-            placeholder="Например, Иван или клиент №1"
-         >
+<section id="queue-panel" class="panel">
+<h2>Очередь клиентов</h2>
+<div class="row">
+<div>
+<label for="status-filter">Фильтр по статусу</label>
+<select id="status-filter">
+<option value="all">Все клиенты</option>
+<option value="waiting">Ожидают</option>
+<option value="assigned">Назначены</option>
+<option value="accepted">В работе</option>
+<option value="skipped">Отказ / пропуск</option>
+<option value="completed">Завершены</option>
+</select>
+</div>
+<div>
+<label for="search-input">Поиск</label>
+<input id="search-input" placeholder="Имя или комментарий">
+</div>
+</div>
+<div id="queue-list"></div>
+<p id="empty-message" class="muted" hidden>Клиентов по этому фильтру нет.</p>
+<p id="queue-error" class="message" role="status"></p>
+</section>
 
-         <label for="customer-note">Комментарий</label>
-         <textarea
-            id="customer-note"
-            rows="2"
-            placeholder="Необязательно"
-         ></textarea>
+<section id="shifts-panel" class="panel">
+<h2>Смены</h2>
+<p class="muted">Расписание сотрудников. Создавать и изменять смены могут администратор и руководитель.</p>
+<div id="shift-create" hidden>
+<label for="shift-staff">Сотрудник</label>
+<select id="shift-staff"></select>
+<div class="row">
+<div><label for="shift-start">Начало</label><input id="shift-start" type="datetime-local"></div>
+<div><label for="shift-end">Окончание</label><input id="shift-end" type="datetime-local"></div>
+</div>
+<button id="add-shift-button">Создать смену</button>
+</div>
+<div id="shift-list"></div>
+<p id="shift-message" class="message"></p>
+</section>
 
-         <button id="add-customer-button" type="button">
-            Добавить в очередь
-         </button>
-        </section>
-
-        <section class="panel">
-         <h2>Очередь клиентов</h2>
-         <p class="muted">
-            Демонстрационная очередь: изменения пока хранятся только
-            в памяти открытой страницы и не синхронизируются между устройствами.
-         </p>
-
-         <div id="queue-list"></div>
-         <p id="empty-message">Очередь пока пуста.</p>
-        </section>
-     </main>
-
-    </div>
+<section id="events-panel" class="panel" hidden>
+<h2>Последние действия</h2>
+<div id="events-list"></div>
+</section>
+</div>
 </div>
 
-
 <script>
-    // Адрес проекта Supabase — без /rest/v1/
-    const SUPABASE_URL = "https://vastshdddizjinesgkxp.supabase.co";
+(() => {
+"use strict";
 
-    // Публичный publishable-ключ проекта
-    const SUPABASE_KEY =
-     "sb_publishable_RpMc6QJO2IjtF8laoLsXKw_EhJLNJct";
+const SUPABASE_URL = "https://vastshdddizjinesgkxp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_RpMc6QJO2IjtF8laoLsXKw_EhJLNJct";
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const supabaseClient = window.supabase.createClient(
-     SUPABASE_URL,
-     SUPABASE_KEY
+const $ = id => document.getElementById(id);
+const state = {
+  user: null,
+  staff: null,
+  staffList: [],
+  customers: [],
+  shifts: [],
+  events: [],
+  recovery: false,
+  busy: false,
+  channel: null
+};
+
+const roleLabels = {
+  admin: "Администратор",
+  supervisor: "Руководитель",
+  manager: "Менеджер"
+};
+
+const statusLabels = {
+  waiting: "Ожидает",
+  assigned: "Назначен",
+  accepted: "В работе",
+  skipped: "Отказ / пропуск",
+  completed: "Завершён"
+};
+
+const canManage = () =>
+  !!state.staff && ["admin", "supervisor"].includes(state.staff.role);
+
+function say(id, text) {
+  $(id).textContent = text || "";
+}
+
+function setBusy(value) {
+  state.busy = value;
+  $("login-button").disabled = value;
+  $("add-customer-button").disabled = value;
+  $("add-shift-button").disabled = value;
+}
+
+function showLogin() {
+  $("app-screen").hidden = true;
+  $("login-screen").hidden = false;
+}
+
+function showApp() {
+  $("login-screen").hidden = true;
+  $("app-screen").hidden = false;
+}
+
+function setRecoveryMode(enabled) {
+  state.recovery = enabled;
+  $("login-heading").hidden = enabled;
+  $("login-email").hidden = enabled;
+  $("login-password").hidden = enabled;
+  $("login-button").hidden = enabled;
+  $("login-message").hidden = enabled;
+  $("recovery-help").hidden = enabled;
+  $("recovery-panel").hidden = !enabled;
+  showLogin();
+}
+
+function escapeText(value) {
+  return String(value ?? "");
+}
+
+function addText(parent, tag, text, className) {
+  const el = document.createElement(tag);
+  el.textContent = text;
+  if (className) el.className = className;
+  parent.appendChild(el);
+  return el;
+}
+
+async function loadStaffList() {
+  const { data, error } = await db
+    .from("staff")
+    .select("id,name,role,active")
+    .eq("active", true)
+    .order("name");
+
+  if (error) throw error;
+  state.staffList = data || [];
+
+  const managers = state.staffList.filter(s => s.role === "manager");
+  $("manager-select").replaceChildren();
+  $("shift-staff").replaceChildren();
+
+  managers.forEach(person => {
+    const opt = document.createElement("option");
+    opt.value = person.id;
+    opt.textContent = person.name;
+    $("manager-select").appendChild(opt);
+  });
+
+  state.staffList.forEach(person => {
+    const opt = document.createElement("option");
+    opt.value = person.id;
+    opt.textContent = person.name + " — " + (roleLabels[person.role] || person.role);
+    $("shift-staff").appendChild(opt);
+  });
+
+  $("assign-panel").hidden = !canManage();
+  $("add-panel").hidden = !canManage();
+  $("shift-create").hidden = !canManage();
+
+  if (!managers.length) {
+    say("manager-message", "Активных менеджеров пока нет. Добавь пользователя в Authentication и зарегистрируй его в public.staff с ролью manager.");
+  } else {
+    say("manager-message", "Активных менеджеров: " + managers.length);
+  }
+}
+
+async function loadQueue() {
+  const { data, error } = await db
+    .from("customers")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  state.customers = data || [];
+  renderQueue();
+}
+
+async function loadShifts() {
+  const { data, error } = await db
+    .from("staff_shifts")
+    .select("*")
+    .order("starts_at", { ascending: true });
+
+  if (error) throw error;
+  state.shifts = data || [];
+  renderShifts();
+}
+
+async function loadEvents() {
+  const { data, error } = await db
+    .from("queue_events")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(25);
+
+  if (error) {
+    // The actual timestamp column may be named timestamp in an existing schema.
+    const retry = await db
+      .from("queue_events")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .limit(25);
+    if (retry.error) throw error;
+    state.events = retry.data || [];
+  } else {
+    state.events = data || [];
+  }
+  renderEvents();
+}
+
+async function refreshAll() {
+  say("queue-error", "");
+  say("connection-status", "Обновление данных…");
+  try {
+    await loadStaffList();
+    await loadQueue();
+    await loadShifts();
+    if (canManage()) await loadEvents();
+    $("events-panel").hidden = !canManage();
+    say("connection-status", "Подключено к Supabase · обновлено " + new Date().toLocaleTimeString("ru-RU"));
+  } catch (error) {
+    say("connection-status", "Ошибка загрузки данных");
+    say("queue-error", "Не удалось загрузить данные: " + error.message);
+  }
+}
+
+function managerName(id) {
+  const person = state.staffList.find(s => s.id === id);
+  return person ? person.name : "Неизвестный сотрудник";
+}
+
+function renderQueue() {
+  const list = $("queue-list");
+  list.replaceChildren();
+
+  const filter = $("status-filter").value;
+  const search = $("search-input").value.trim().toLocaleLowerCase("ru");
+  let rows = state.customers.filter(c => {
+    const statusOk = filter === "all" || c.status === filter;
+    const text = (c.display_name || "") + " " + (c.note || "");
+    return statusOk && text.toLocaleLowerCase("ru").includes(search);
+  });
+
+  // Менеджеру показываем только его назначенных клиентов и ожидающих клиентов.
+  if (state.staff?.role === "manager") {
+    rows = rows.filter(c =>
+      c.assigned_staff_id === state.staff.id ||
+      (c.status === "waiting" && !c.assigned_staff_id)
     );
+  }
 
-    const loginScreen = document.getElementById("login-screen");
-    const appScreen = document.getElementById("app-screen");
-    const loginMessage = document.getElementById("login-message");
-    const recoveryTitle = document.getElementById("recovery-title");
-    const recoveryPassword = document.getElementById("recovery-password");
-    const recoveryButton = document.getElementById("recovery-button");
-    const recoveryMessage = document.getElementById("recovery-message");
+  $("empty-message").hidden = rows.length > 0;
 
-    let currentStaff = null;
-    let customers = [];
-    let recoveryMode = false;
+  rows.forEach((customer, index) => {
+    const card = document.createElement("article");
+    card.className = "customer";
 
-    function hideAppUntilLogin() {
-     appScreen.hidden = true;
-     loginScreen.hidden = false;
+    addText(card, "h3", (index + 1) + ". " + escapeText(customer.display_name));
+    if (customer.note) addText(card, "p", customer.note);
+
+    const status = addText(card, "span",
+      statusLabels[customer.status] || customer.status || "Неизвестен", "status");
+    status.title = customer.status || "";
+
+    if (customer.assigned_staff_id) {
+      addText(card, "p", "Ответственный: " + managerName(customer.assigned_staff_id), "muted");
     }
 
-    function showAppAfterLogin() {
-     loginScreen.hidden = true;
-     appScreen.hidden = false;
+    if (customer.created_at) {
+      addText(card, "p",
+        "Добавлен: " + new Date(customer.created_at).toLocaleString("ru-RU"),
+        "muted");
     }
 
-    function setRecoveryMode(enabled) {
-     recoveryMode = enabled;
+    const actions = document.createElement("div");
 
-     loginScreen.querySelector("h2").hidden = enabled;
+    if (canManage() && customer.status === "waiting" && !customer.assigned_staff_id) {
+      const assign = document.createElement("button");
+      assign.textContent = "Назначить выбранному";
+      assign.addEventListener("click", () =>
+        assignCustomer(customer.id, $("manager-select").value));
+      actions.appendChild(assign);
 
-     document.querySelector('label[for="login-email"]').hidden = enabled;
-     document.querySelector('label[for="login-password"]').hidden = enabled;
-
-     document.getElementById("login-email").hidden = enabled;
-     document.getElementById("login-password").hidden = enabled;
-     document.getElementById("login-button").hidden = enabled;
-     loginMessage.hidden = enabled;
-
-     recoveryTitle.hidden = !enabled;
-     recoveryPassword.hidden = !enabled;
-     recoveryButton.hidden = !enabled;
-     recoveryMessage.hidden = !enabled;
+      const rotate = document.createElement("button");
+      rotate.className = "secondary";
+      rotate.textContent = "Назначить по ротации";
+      rotate.addEventListener("click", () => assignByRotation(customer.id));
+      actions.appendChild(rotate);
     }
 
-    async function checkStaffAndShow(user) {
-     const { data: staff, error } = await supabaseClient
-        .from("staff")
-        .select("id, name, role, active")
-        .eq("id", user.id)
-        .maybeSingle();
+    const isAssignedManager =
+      state.staff?.role === "manager" &&
+      customer.assigned_staff_id === state.staff.id;
 
-     if (error || !staff || !staff.active) {
-        await supabaseClient.auth.signOut();
-        hideAppUntilLogin();
+    if (isAssignedManager && customer.status === "assigned") {
+      const accept = document.createElement("button");
+      accept.className = "success";
+      accept.textContent = "Принять клиента";
+      accept.addEventListener("click", () => updateCustomer(customer, {
+        status: "accepted",
+        accepted_at: new Date().toISOString()
+      }, "accepted"));
+      actions.appendChild(accept);
 
-        loginMessage.textContent =
-         "Нет активной учётной записи сотрудника. Обратитесь к администратору.";
-
-        return;
-     }
-
-     currentStaff = staff;
-
-     document.getElementById("staff-info").textContent =
-        "Сотрудник: " + staff.name + " · Роль: " + staff.role;
-
-     showAppAfterLogin();
-     renderQueue();
+      const skip = document.createElement("button");
+      skip.className = "warning";
+      skip.textContent = "Отказ / пропуск";
+      skip.addEventListener("click", () => updateCustomer(customer, {
+        status: "skipped"
+      }, "skipped"));
+      actions.appendChild(skip);
     }
 
-    // Сначала показываем только форму входа
-    hideAppUntilLogin();
-    setRecoveryMode(false);
-
-    // Вход по email и паролю
-    document.getElementById("login-button").addEventListener(
-     "click",
-     async () => {
-        const email = document.getElementById("login-email").value.trim();
-        const password = document.getElementById("login-password").value;
-
-        if (!email || !password) {
-         loginMessage.textContent = "Введите email и пароль.";
-         return;
-        }
-
-        const button = document.getElementById("login-button");
-        button.disabled = true;
-        loginMessage.textContent = "Выполняется вход…";
-
-        const { data, error } = await supabaseClient.auth
-         .signInWithPassword({ email, password });
-
-        button.disabled = false;
-
-        if (error) {
-         loginMessage.textContent =
-            "Не удалось войти. Проверьте email и пароль.";
-         return;
-        }
-
-        await checkStaffAndShow(data.user);
-     }
-    );
-
-    // Восстановление пароля: срабатывает при переходе по действительной ссылке
-    supabaseClient.auth.onAuthStateChange((event) => {
-     if (event === "PASSWORD_RECOVERY") {
-        hideAppUntilLogin();
-        loginScreen.hidden = false;
-        setRecoveryMode(true);
-
-        recoveryMessage.textContent =
-         "Введите новый пароль длиной не менее 8 символов.";
-     }
-    });
-
-    // Сохранение нового пароля
-    recoveryButton.addEventListener("click", async () => {
-     const password = recoveryPassword.value;
-
-     if (password.length < 8) {
-        recoveryMessage.textContent =
-         "Пароль должен содержать минимум 8 символов.";
-        return;
-     }
-
-     recoveryButton.disabled = true;
-     recoveryMessage.textContent = "Сохраняем новый пароль…";
-
-     const { error } = await supabaseClient.auth.updateUser({
-        password: password
-     });
-
-     recoveryButton.disabled = false;
-
-     if (error) {
-        recoveryMessage.textContent =
-         "Не удалось сменить пароль. Ссылка могла истечь или быть уже использована. Запросите новую ссылку и откройте самое последнее письмо.";
-        return;
-     }
-
-     recoveryPassword.value = "";
-
-     await supabaseClient.auth.signOut();
-
-     setRecoveryMode(false);
-     loginMessage.textContent =
-        "Пароль изменён. Теперь войдите с новым паролем.";
-    });
-
-    // Проверяем, есть ли уже активная сессия
-    supabaseClient.auth.getSession().then(async ({ data, error }) => {
-     if (error || !data.session) {
-        hideAppUntilLogin();
-        return;
-     }
-
-     await checkStaffAndShow(data.session.user);
-    });
-
-    // Выход из аккаунта
-    document.getElementById("logout-button").addEventListener(
-     "click",
-     async () => {
-        await supabaseClient.auth.signOut();
-        currentStaff = null;
-        hideAppUntilLogin();
-        loginMessage.textContent = "Вы вышли из системы.";
-     }
-    );
-
-    // Добавление клиента в демонстрационную очередь
-    document.getElementById("add-customer-button").addEventListener(
-     "click",
-     () => {
-        const nameInput = document.getElementById("customer-name");
-        const noteInput = document.getElementById("customer-note");
-
-        const name = nameInput.value.trim();
-        const note = noteInput.value.trim();
-
-        if (!name) {
-         alert("Введите имя или описание клиента.");
-         return;
-        }
-
-        customers.push({
-         id: Date.now() + Math.random(),
-         name: name,
-         note: note,
-         status: "Ожидает",
-         assignedTo: null
-        });
-
-        nameInput.value = "";
-        noteInput.value = "";
-
-        renderQueue();
-     }
-    );
-
-    function renderQueue() {
-     const list = document.getElementById("queue-list");
-     const emptyMessage = document.getElementById("empty-message");
-
-     list.innerHTML = "";
-     emptyMessage.hidden = customers.length > 0;
-
-     customers.forEach((customer, index) => {
-        const card = document.createElement("article");
-        card.className = "customer";
-
-        const title = document.createElement("h3");
-        title.textContent = (index + 1) + ". " + customer.name;
-        card.appendChild(title);
-
-        if (customer.note) {
-         const note = document.createElement("p");
-         note.textContent = customer.note;
-         card.appendChild(note);
-        }
-
-        const status = document.createElement("span");
-        status.className = "status";
-        status.textContent = customer.status;
-        card.appendChild(status);
-
-        if (customer.assignedTo) {
-         const assigned = document.createElement("p");
-         assigned.className = "muted";
-         assigned.textContent = "Ответственный: " + customer.assignedTo;
-         card.appendChild(assigned);
-        }
-
-        const actions = document.createElement("div");
-
-        if (customer.status !== "Завершён") {
-         const finishButton = document.createElement("button");
-         finishButton.className = "success";
-         finishButton.textContent = "Завершить";
-
-         finishButton.addEventListener("click", () => {
-            customer.status = "Завершён";
-            renderQueue();
-         });
-
-         actions.appendChild(finishButton);
-        }
-
-        const deleteButton = document.createElement("button");
-        deleteButton.className = "danger";
-        deleteButton.textContent = "Удалить";
-
-        deleteButton.addEventListener("click", () => {
-         customers = customers.filter(item => item.id !== customer.id);
-         renderQueue();
-        });
-
-        actions.appendChild(deleteButton);
-        card.appendChild(actions);
-        list.appendChild(card);
-     });
+    if ((isAssignedManager && customer.status === "accepted") || canManage()) {
+      if (customer.status !== "completed") {
+        const finish = document.createElement("button");
+        finish.className = "success";
+        finish.textContent = "Завершить";
+        finish.addEventListener("click", () => updateCustomer(customer, {
+          status: "completed",
+          completed_at: new Date().toISOString()
+        }, "completed"));
+        actions.appendChild(finish);
+      }
     }
-</script>
 
-</body>
-</html>
+    if (canManage() && ["skipped", "assigned"].includes(customer.status)) {
+      const returnQueue = document.createElement("button");
+      returnQueue.className = "secondary";
+      returnQueue.textContent = "Вернуть в ожидание";
+      returnQueue.addEventListener("click", () => updateCustomer(customer, {
+        status: "waiting",
+        assigned_staff_id: null,
+        assigned_at: null,
+        accepted_at: null
+      }, "returned_to_queue"));
+      actions.appendChild(returnQueue);
+    }
+
+    if (canManage() && customer.status !== "completed") {
+      const reassign = document.createElement("button");
+      reassign.className = "secondary";
+      reassign.textContent = "Переназначить";
+      reassign.addEventListener("click", async () => {
+        const managerId = $("manager-select").value;
+        if (!managerId) {
+          say("queue-error", "Сначала добавь активного менеджера.");
+          return;
+        }
+        const { error } = await db.from("customers").update({
+          assigned_staff_id: managerId,
+          status: "assigned",
+          assigned_at: new Date().toISOString(),
+          accepted_at: null
+        }).eq("id", customer.id);
+        if (error) return say("queue-error", "Не удалось переназначить: " + error.message);
+        await logEvent(customer.id, "reassigned", { manager_id: managerId });
+        await refreshAll();
+      });
+      actions.appendChild(reassign);
+    }
+
+    if (actions.childElementCount) card.appendChild(actions);
+    list.appendChild(card);
+  });
+}
+
+async function logEvent(customerId, eventType, details = {}) {
+  if (!state.staff) return;
+  const { error } = await db.from("queue_events").insert({
+    customer_id: customerId,
+    staff_id: state.staff.id,
+    event_type: eventType,
+    details
+  });
+  if (error) console.warn("Не удалось записать событие:", error.message);
+}
+
+async function addCustomer() {
+  const name = $("customer-name").value.trim();
+  const note = $("customer-note").value.trim();
+
+  if (!canManage()) return say("queue-error", "Недостаточно прав для добавления клиента.");
+  if (!name) return say("queue-error", "Введи имя или описание клиента.");
+
+  setBusy(true);
+  say("queue-error", "Добавляем клиента…");
+
+  const { data, error } = await db.from("customers").insert({
+    display_name: name,
+    note: note || null,
+    status: "waiting",
+    assigned_staff_id: null
+  }).select().single();
+
+  setBusy(false);
+  if (error) {
+    say("queue-error", "Не удалось добавить клиента: " + error.message);
+    return;
+  }
+
+  $("customer-name").value = "";
+  $("customer-note").value = "";
+  await logEvent(data.id, "created", { display_name: name });
+  say("queue-error", "Клиент добавлен.");
+  await refreshAll();
+}
+
+async function assignCustomer(customerId, managerId) {
+  if (!managerId) return say("queue-error", "Выбери менеджера.");
+  say("queue-error", "Назначаем клиента…");
+
+  const { error } = await db.rpc("assign_waiting_customer", {
+    p_customer_id: customerId,
+    p_manager_id: managerId
+  });
+
+  if (error) {
+    say("queue-error", "Назначение не выполнено: " + error.message);
+    return;
+  }
+  say("queue-error", "Клиент назначен: " + managerName(managerId));
+  await refreshAll();
+}
+
+async function assignByRotation(customerId) {
+  const managers = state.staffList.filter(s => s.role === "manager" && s.active);
+  if (!managers.length) return say("queue-error", "Нет активных менеджеров.");
+
+  const counts = new Map(managers.map(m => [m.id, 0]));
+  state.customers.forEach(c => {
+    if (c.assigned_staff_id && ["assigned", "accepted"].includes(c.status)) {
+      counts.set(c.assigned_staff_id, (counts.get(c.assigned_staff_id) || 0) + 1);
+    }
+  });
+
+  const ordered = [...managers].sort((a, b) =>
+    (counts.get(a.id) || 0) - (counts.get(b.id) || 0) ||
+    a.name.localeCompare(b.name, "ru")
+  );
+
+  $("manager-select").value = ordered[0].id;
+  await assignCustomer(customerId, ordered[0].id);
+}
+
+async function updateCustomer(customer, changes, eventType) {
+  say("queue-error", "Сохраняем изменения…");
+
+  const { error } = await db.from("customers")
+    .update(changes)
+    .eq("id", customer.id);
+
+  if (error) {
+    say("queue-error", "Изменение не сохранено: " + error.message);
+    return;
+  }
+
+  await logEvent(customer.id, eventType, changes);
+  say("queue-error", "Изменения сохранены.");
+  await refreshAll();
+}
+
+function renderShifts() {
+  const list = $("shift-list");
+  list.replaceChildren();
+
+  if (!state.shifts.length) {
+    addText(list, "p", "Смен пока нет.", "muted");
+    return;
+  }
+
+  state.shifts.forEach(shift => {
+    const card = document.createElement("article");
+    card.className = "customer";
+    addText(card, "strong", managerName(shift.staff_id));
+    addText(card, "p",
+      new Date(shift.starts_at).toLocaleString("ru-RU") +
+      " — " + new Date(shift.ends_at).toLocaleString("ru-RU"));
+    addText(card, "span", shift.status, "status");
+
+    if (canManage()) {
+      if (shift.status === "planned") {
+        const activate = document.createElement("button");
+        activate.className = "success";
+        activate.textContent = "Начать смену";
+        activate.addEventListener("click", () => changeShift(shift.id, "active"));
+        card.appendChild(activate);
+      }
+      if (shift.status !== "completed") {
+        const complete = document.createElement("button");
+        complete.className = "secondary";
+        complete.textContent = "Завершить смену";
+        complete.addEventListener("click", () => changeShift(shift.id, "completed"));
+        card.appendChild(complete);
+      }
+    }
+    list.appendChild(card);
+  });
+}
+
+async function createShift() {
+  const staffId = $("shift-staff").value;
+  const startValue = $("shift-start").value;
+  const endValue = $("shift-end").value;
+
+  if (!staffId || !startValue || !endValue) {
+    return say("shift-message", "Укажи сотрудника, начало и окончание смены.");
+  }
+
+  const startsAt = new Date(startValue);
+  const endsAt = new Date(endValue);
+
+  if (!(endsAt > startsAt)) {
+    return say("shift-message", "Окончание смены должно быть позже начала.");
+  }
+
+  const { error } = await db.from("staff_shifts").insert({
+    staff_id: staffId,
+    starts_at: startsAt.toISOString(),
+    ends_at: endsAt.toISOString(),
+    status: "planned",
+    created_by: state.staff.id
+  });
+
+  if (error) return say("shift-message", "Не удалось создать смену: " + error.message);
+  say("shift-message", "Смена создана.");
+  await loadShifts();
+}
+
+async function changeShift(id, status) {
+  const { error } = await db.from("staff_ (...)
