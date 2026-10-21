@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#14243a">
+  <title>AutoQueue — очередь автосалона</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: Arial, sans-serif;
+      background: #f2f5f9; color: #17263c;
+    }
+    header {
+      background: #14243a; color: white;
+      padding: 22px max(18px, calc((100% - 1100px)/2));
+    }
+    header h1 { margin: 0 0 6px; }
+    header p { margin: 0; color: #c2d0df; }
+    main { max-width: 1100px; margin: auto; padding: 20px; }
+    .stats {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 12px; margin-bottom: 20px;
+    }
+    .card, .panel {
+      background: white; border-radius: 14px;
+      padding: 18px; box-shadow: 0 3px 12px #182c4010;
+    }
+    .number { font-size: 28px; font-weight: bold; margin-top: 8px; }
+    .layout {
+      display: grid; grid-template-columns: 1.2fr 1fr; gap: 18px;
+    }
+    h2 { font-size: 19px; margin-top: 0; }
+    input, select, button {
+      width: 100%; padding: 12px; border-radius: 9px;
+      border: 1px solid #d5dce6; font-size: 15px;
+      margin: 5px 0 10px;
+    }
+    button {
+      background: #087f70; color: white; border: 0;
+      cursor: pointer; font-weight: bold;
+    }
+    button:hover { opacity: .88; }
+    .customer {
+      border: 1px solid #e1e7ef; border-radius: 10px;
+      padding: 12px; margin-top: 10px;
+    }
+    .status { color: #087f70; font-size: 13px; margin: 6px 0; }
+    .muted { color: #69788b; font-size: 13px; }
+    .manager {
+      display: flex; justify-content: space-between;
+      align-items: center; gap: 8px;
+      border-bottom: 1px solid #edf0f4; padding: 12px 0;
+    }
+    .manager button { width: auto; padding: 8px 12px; margin: 0; }
+    @media(max-width: 650px) {
+      .stats { grid-template-columns: 1fr; }
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>AutoQueue</h1>
+  <p>Управление очередью покупателей автосалона</p>
+</header>
+<main>
+  <div class="stats">
+    <div class="card">В очереди<div class="number" id="queueCount">0</div></div>
+    <div class="card">Свободные менеджеры<div class="number" id="freeCount">6</div></div>
+    <div class="card">Обращения сегодня<div class="number" id="totalCount">0</div></div>
+  </div>
+
+  <div class="layout">
+    <section class="panel">
+      <h2>Добавить покупателя</h2>
+      <form id="customerForm">
+        <label for="customerName">Имя или номер обращения</label>
+        <input id="customerName" placeholder="Например, Покупатель 001" required>
+        <label for="customerNote">Комментарий (необязательно)</label>
+        <input id="customerNote" placeholder="Интересующая модель">
+        <button type="submit">Добавить в очередь</button>
+      </form>
+      <h2 style="margin-top:24px">Очередь покупателей</h2>
+      <div id="queue"><p class="muted">Очередь пока пуста.</p></div>
+    </section>
+
+    <section class="panel">
+      <h2>Менеджеры</h2>
+      <p class="muted">Демонстрационный список из шести сотрудников.</p>
+      <div id="managers"></div>
+    </section>
+  </div>
+  <p class="muted" style="margin-top:20px">
+    Демоверсия AutoQueue. Данные пока хранятся только в этом браузере.
+  </p>
+</main>
+<script>
+  const names = [
+    "Менеджер 1", "Менеджер 2", "Менеджер 3",
+    "Менеджер 4", "Менеджер 5", "Менеджер 6"
+  ];
+  let managers = names.map(name => ({name, busy:false}));
+  let customers = [];
+  let total = 0;
+
+  const queue = document.getElementById("queue");
+  const managerBox = document.getElementById("managers");
+
+  function render() {
+    document.getElementById("queueCount").textContent =
+      customers.filter(c => c.status === "В очереди").length;
+    document.getElementById("freeCount").textContent =
+      managers.filter(m => !m.busy).length;
+    document.getElementById("totalCount").textContent = total;
+
+    queue.innerHTML = "";
+    if (!customers.length) {
+      queue.innerHTML = '<p class="muted">Очередь пока пуста.</p>';
+    }
+
+    customers.forEach(c => {
+      const item = document.createElement("div");
+      item.className = "customer";
+      const title = document.createElement("strong");
+      title.textContent = c.name;
+      const status = document.createElement("div");
+      status.className = "status";
+      status.textContent = c.status + (c.manager ? " · " + c.manager : "");
+      const note = document.createElement("div");
+      note.className = "muted";
+      note.textContent = c.note || "";
+      item.append(title, status, note);
+
+      if (c.status === "В очереди") {
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", "Выбрать менеджера");
+        select.innerHTML = '<option value="">Назначить менеджера...</option>';
+        managers.forEach((m, i) => {
+          if (!m.busy) {
+            const option = document.createElement("option");
+            option.value = i;
+            option.textContent = m.name;
+            select.appendChild(option);
+          }
+        });
+        select.addEventListener("change", () => {
+          const m = managers[Number(select.value)];
+          if (!m || m.busy) return;
+          m.busy = true;
+          c.manager = m.name;
+          c.status = "Назначен — ожидает ответа";
+          c.assignedAt = Date.now();
+          render();
+        });
+        item.appendChild(select);
+      }
+
+      if (c.status === "Назначен — ожидает ответа") {
+        const timer = document.createElement("div");
+        timer.className = "muted";
+        timer.textContent = "Ожидание ответа: " +
+          Math.floor((Date.now() - c.assignedAt) / 1000) + " сек.";
+        item.appendChild(timer);
+
+        const accept = document.createElement("button");
+        accept.textContent = "Принять";
+        accept.onclick = () => { c.status = "В работе"; render(); };
+        item.appendChild(accept);
+
+        const skip = document.createElement("button");
+        skip.textContent = "Пропустить";
+        skip.style.background = "#69788b";
+        skip.onclick = () => {
+          const m = managers.find(x => x.name === c.manager);
+          if (m) m.busy = false;
+          c.status = "В очереди";
+          c.manager = "";
+          render();
+        };
+        item.appendChild(skip);
+      }
+
+      if (c.status === "В работе") {
+        const finish = document.createElement("button");
+        finish.textContent = "Завершить обращение";
+        finish.onclick = () => {
+          const m = managers.find(x => x.name === c.manager);
+          if (m) m.busy = false;
+          c.status = "Завершено";
+          render();
+        };
+        item.appendChild(finish);
+      }
+      queue.appendChild(item);
+    });
+
+    managerBox.innerHTML = "";
+    managers.forEach(m => {
+      const row = document.createElement("div");
+      row.className = "manager";
+      const info = document.createElement("span");
+      info.textContent = m.name + " — " + (m.busy ? "Занят" : "Свободен");
+      row.appendChild(info);
+      managerBox.appendChild(row);
+    });
+  }
+
+  document.getElementById("customerForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = document.getElementById("customerName").value.trim();
+    const note = document.getElementById("customerNote").value.trim();
+    if (!name) return;
+    customers.push({
+      name, note, status:"В очереди", manager:"", id:Date.now()
+    });
+    total++;
+    e.target.reset();
+    render();
+  });
+
+  setInterval(() => {
+    document.querySelectorAll(".customer").length && render();
+  }, 1000);
+
+  render();
+</script>
+</body>
+</html>
