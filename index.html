@@ -113,6 +113,74 @@ const supabaseClient = window.supabase.createClient(
     SUPABASE_URL,
     SUPABASE_KEY
 );
+  const loginScreen = document.getElementById("login-screen");
+const loginMessage = document.getElementById("login-message");
+
+function hideAppUntilLogin() {
+for (const el of document.body.children) {
+    if (el !== loginScreen && el.tagName !== "SCRIPT") {
+     el.hidden = true;
+    }
+}
+}
+
+function showAppAfterLogin() {
+loginScreen.hidden = true;
+for (const el of document.body.children) {
+    if (el !== loginScreen && el.tagName !== "SCRIPT") {
+     el.hidden = false;
+    }
+}
+}
+
+async function checkStaffAndShow(user) {
+const { data: staff, error } = await supabaseClient
+    .from("staff")
+    .select("id, name, role, active")
+    .eq("id", user.id)
+    .maybeSingle();
+
+if (error || !staff || !staff.active) {
+    await supabaseClient.auth.signOut();
+    loginMessage.textContent =
+     "Нет активной учётной записи сотрудника. Обратитесь к администратору.";
+    return;
+}
+
+showAppAfterLogin();
+}
+
+hideAppUntilLogin();
+
+document.getElementById("login-button").addEventListener("click", async () => {
+const email = document.getElementById("login-email").value.trim();
+const password = document.getElementById("login-password").value;
+
+if (!email || !password) {
+    loginMessage.textContent = "Введите почту и пароль.";
+    return;
+}
+
+loginMessage.textContent = "Выполняется вход…";
+
+const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+});
+
+if (error) {
+    loginMessage.textContent = "Не удалось войти. Проверьте почту и пароль.";
+    return;
+}
+
+await checkStaffAndShow(data.user);
+});
+
+supabaseClient.auth.getSession().then(async ({ data, error }) => {
+if (!error && data.session) {
+    await checkStaffAndShow(data.session.user);
+}
+});
   const names = [
     "Менеджер 1", "Менеджер 2", "Менеджер 3",
     "Менеджер 4", "Менеджер 5", "Менеджер 6"
