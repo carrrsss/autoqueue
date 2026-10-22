@@ -23,7 +23,7 @@ input,select,textarea,button{font:inherit;border-radius:9px;border:1px solid #d5
   <section id="loginPanel" class="panel">
     <h2>Вход в систему</h2>
     <form id="loginForm" class="row">
-      <input class="grow" id="email" type="email" placeholder="Email" required autocomplete="username">
+      <input class="grow" id="email" type="text" placeholder="Логин или Email" required autocomplete="username">
       <input class="grow" id="password" type="password" placeholder="Пароль" required autocomplete="current-password">
       <button class="primary" type="submit">Войти</button>
     </form>
@@ -66,6 +66,32 @@ input,select,textarea,button{font:inherit;border-radius:9px;border:1px solid #d5
       <hr style="border:0;border-top:1px solid #e5e8ef;margin:20px 0">
       <h2>Менеджеры</h2>
       <div class="muted">Порядок задаётся числом: 1 — первый в очереди, 2 — второй и так далее. Для смены можно задать отдельный порядок ниже.</div>
+      <div class="item">
+  <h3>Добавить менеджера</h3>
+
+  <form id="createManagerForm">
+    <input id="newManagerName"
+      placeholder="Имя менеджера"
+      required maxlength="100">
+
+    <input id="newManagerLogin"
+      placeholder="Логин"
+      required minlength="3" maxlength="30"
+      pattern="[A-Za-z0-9._-]{3,30}">
+
+    <input id="newManagerPassword"
+      type="password"
+      placeholder="Пароль — минимум 10 символов"
+      required minlength="10"
+      autocomplete="new-password">
+
+    <button class="primary" type="submit">
+      Создать менеджера
+    </button>
+
+    <p id="createManagerMessage"></p>
+  </form>
+</div>
       <div id="staffList"></div>
       <div id="adminQueue" style="margin-top:20px"></div>
     </section>
@@ -212,8 +238,17 @@ input,select,textarea,button{font:inherit;border-radius:9px;border:1px solid #d5
   $('loginForm').addEventListener('submit',async e=>{
     e.preventDefault();
     try{
-      const {error}=await db.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});
-      if(error) throw error;
+     const identifier = $('email').value.trim().toLowerCase();
+const email = identifier.includes('@')
+  ? identifier
+  : `${identifier}@autoqueue.invalid`;
+
+const { error } = await db.auth.signInWithPassword({
+  email,
+  password: $('password').value
+});
+
+if (error) throw error;
       await startApp();
     }catch(err){setLoginMessage(err.message||String(err),true);}
   });
@@ -256,6 +291,42 @@ input,select,textarea,button{font:inherit;border-radius:9px;border:1px solid #d5
       message('Клиент добавлен в очередь.');await refresh();
     }catch(err){message(err.message||String(err),true);}
   });
+  $('createManagerForm').addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const messageBox = $('createManagerMessage');
+  const button = e.currentTarget.querySelector('button[type="submit"]');
+
+  button.disabled = true;
+  messageBox.textContent = 'Создаём менеджера...';
+
+  try {
+    const { data, error } = await db.functions.invoke('create-manager', {
+      body: {
+        name: $('newManagerName').value.trim(),
+        login: $('newManagerLogin').value.trim().toLowerCase(),
+        password: $('newManagerPassword').value
+      }
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    if (!data?.success) throw new Error('Сервер не подтвердил создание.');
+
+    messageBox.textContent =
+      `Менеджер ${data.manager.name} создан. Логин: ${data.manager.login}`;
+
+    $('newManagerName').value = '';
+    $('newManagerLogin').value = '';
+    $('newManagerPassword').value = '';
+
+    await refresh();
+  } catch (err) {
+    messageBox.textContent = 'Ошибка: ' + (err.message || String(err));
+  } finally {
+    button.disabled = false;
+  }
+});
   $('shiftForm').addEventListener('submit',async e=>{
     e.preventDefault(); if(!adminRole()) return;
     try{
