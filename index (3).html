@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AutoQueue</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#20232a;background:#f4f6fa}*{box-sizing:border-box}body{margin:0}header{background:#18243a;color:white;padding:18px 22px;display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}h1{font-size:22px;margin:0}main{max-width:1150px;margin:22px auto;padding:0 14px}.panel{background:white;border:1px solid #e1e5ed;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 2px 8px #17203308}h2{font-size:17px;margin:0 0 12px}h3{font-size:15px;margin:0 0 8px}.muted{color:#687386;font-size:13px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.grow{flex:1;min-width:220px}input,select,textarea,button{font:inherit;border-radius:9px;border:1px solid #d5dbe6;padding:10px 12px}input,select,textarea{background:white;min-width:0}button{cursor:pointer;background:#fff}button.primary{background:#245bd6;color:white;border-color:#245bd6}button.danger{color:#a42323;border-color:#e4baba}button:disabled{opacity:.5;cursor:not-allowed}.hidden{display:none!important}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab.active{background:#18243a;color:white}.item{border:1px solid #e2e7ef;border-radius:12px;padding:13px;margin:10px 0}.item-top{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}.pill{display:inline-block;padding:4px 8px;border-radius:99px;background:#edf1f7;font-size:12px}.pill.primary-type{background:#e4edff;color:#1648a4}.pill.secondary-type{background:#fff0dc;color:#884900}.pill.alert{background:#ffe3e3;color:#9b2020}.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.notice{padding:10px 12px;border-radius:9px;background:#eef4ff;margin:10px 0}.error{background:#fff0f0;color:#9c2020}.ok{background:#e8f7ed;color:#176337}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.timer{font-variant-numeric:tabular-nums;font-weight:700}.small{font-size:12px}.right{margin-left:auto}form input,form select{max-width:100%}#createManagerForm{display:grid;gap:9px;max-width:520px}hr{border:0;border-top:1px solid #e5e8ef;margin:20px 0}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>AutoQueue</h1><div class="muted" style="color:#cbd4e5">Очередь клиентов и распределение менеджеров</div></div>
+  <div class="row"><span id="userLabel"></span><button id="logoutBtn" class="hidden" type="button">Выйти</button></div>
+</header>
+<main>
+  <section id="loginPanel" class="panel">
+    <h2>Вход в систему</h2>
+    <form id="loginForm" class="row">
+      <input class="grow" id="email" type="text" placeholder="Логин или Email" required autocomplete="username">
+      <input class="grow" id="password" type="password" placeholder="Пароль" required autocomplete="current-password">
+      <button class="primary" type="submit">Войти</button>
+    </form>
+    <div id="loginMessage" class="notice hidden"></div>
+  </section>
+
+  <section id="app" class="hidden">
+    <div id="globalMessage" class="notice hidden"></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="queue" type="button">Очередь</button>
+      <button class="tab" data-tab="admin" type="button">Управление</button>
+      <button class="tab" data-tab="shifts" type="button">Смена и порядок</button>
+      <button class="tab" data-tab="history" type="button">История</button>
+    </div>
+    <section id="tab-queue" class="panel">
+      <section class="item" id="primaryManagerQueue" aria-live="polite">
+        <div class="row"><h2 class="grow">Очередь менеджеров — Первичка</h2><span class="pill primary-type">Только первичка</span></div>
+        <div id="primaryManagerQueueContent" class="muted">Загружаем порядок менеджеров…</div>
+      </section>
+      <div class="row"><h2 class="grow">Клиенты</h2><button id="refreshBtn" type="button">Обновить</button></div>
+      <div class="row" style="margin-bottom:12px"><select id="queueFilter"><option value="all">Все клиенты</option><option value="waiting">В очереди</option><option value="assigned">Ожидают принятия</option><option value="accepted">В работе</option><option value="admin">Решение администратора</option><option value="completed">Завершённые</option></select><span class="muted">На принятие назначенного клиента — 5 минут.</span></div>
+      <div id="queueList"></div>
+    </section>
+
+    <section id="tab-admin" class="panel hidden">
+      <h2>Добавить клиента</h2>
+      <form id="addCustomerForm">
+        <div class="row"><input id="customerName" class="grow" placeholder="Имя клиента / название" required maxlength="200"><select id="customerType" required><option value="primary">Первичка</option><option value="secondary">Вторичка</option></select></div>
+        <div class="row" style="margin-top:9px"><input id="customerNote" class="grow" placeholder="Комментарий (необязательно)" maxlength="1000"><button class="primary" type="submit">Добавить и назначить</button></div>
+      </form>
+      <hr>
+      <h2>Менеджеры</h2>
+      <div class="muted">Порядок задаётся числом: 1 — первый в очереди, 2 — второй и так далее. Для смены можно задать отдельный порядок ниже.</div>
+      <div class="item">
+        <h3>Добавить менеджера</h3>
+        <form id="createManagerForm">
+          <input id="newManagerName" placeholder="Имя менеджера" required maxlength="100">
+          <input id="newManagerLogin" placeholder="Логин" required minlength="3" maxlength="30" pattern="[A-Za-z0-9._-]{3,30}" autocomplete="username">
+          <input id="newManagerPassword" type="password" placeholder="Пароль — минимум 10 символов" required minlength="10" autocomplete="new-password">
+          <button class="primary" type="submit">Создать менеджера</button>
+          <p id="createManagerMessage" class="muted" aria-live="polite"></p>
+        </form>
+      </div>
+      <div id="staffList"></div>
+      <div id="adminQueue" style="margin-top:20px"></div>
+    </section>
+
+    <section id="tab-shifts" class="panel hidden">
+      <h2>Активная смена и порядок</h2>
+      <p class="muted">Добавьте менеджерам активную смену и укажите их порядок. Если активных смен нет, система использует общий queue_order в списке сотрудников.</p>
+      <form id="shiftForm" class="row">
+        <select id="shiftStaff" required></select><input id="shiftOrder" type="number" min="1" value="1" required style="width:100px" title="Порядок">
+        <label class="small">Начало <input id="shiftStart" type="datetime-local" required></label><label class="small">Окончание <input id="shiftEnd" type="datetime-local" required></label>
+        <button class="primary" type="submit">Создать смену</button>
+      </form>
+      <div id="shiftList"></div>
+    </section>
+
+    <section id="tab-history" class="panel hidden"><div class="row"><h2 class="grow">История действий</h2><button id="historyRefresh" type="button">Обновить</button></div><div id="historyList"></div></section>
+  </section>
+</main>
+<script>
+(() => {
+  const SUPABASE_URL = 'https://vastshdddizjinesgkxp.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_RpMc6QJO2IjtF8laoLsXKw_EhJLNJct';
+  const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+  let user = null, profile = null, staff = [], customers = [], shifts = [], events = [], realtime = null, primaryCursor = null, primaryCursorError = false;
+  const adminRole = () => !!profile && ['admin','supervisor'].includes(profile.role);
+  const fmt = value => value ? new Date(value).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  function message(text, error=false) {
+    const el = $('globalMessage'); el.textContent = text; el.className = 'notice ' + (error ? 'error' : 'ok'); el.classList.remove('hidden');
+    if (!error) setTimeout(() => el.classList.add('hidden'), 4500);
+  }
+  function setLoginMessage(text, error=false) {
+    const el = $('loginMessage'); el.textContent = text; el.className = 'notice ' + (error ? 'error' : 'ok'); el.classList.remove('hidden');
+  }
+  function canSeeCustomer(c) { return adminRole() || c.assigned_staff_id === user?.id || c.status === 'waiting' || c.needs_admin; }
+  function managerName(id) { return staff.find(s => s.id === id)?.name || 'Не назначен'; }
+  function typeName(t) { return t === 'secondary' ? 'Вторичка' : 'Первичка'; }
+  function statusName(c) {
+    if (c.needs_admin) return 'Решение администратора';
+    return ({waiting:'В очереди',assigned:'Ожидает принятия',accepted:'В работе',skipped:'Отказ / возвращён',completed:'Завершён'})[c.status] || c.status || '—';
+  }
+
+  async function loadProfile() {
+    const { data: { user: currentUser }, error } = await db.auth.getUser();
+    if (error) throw error;
+    user = currentUser;
+    if (!user) { profile = null; return; }
+    const res = await db.from('staff').select('*').eq('id', user.id).eq('active', true).maybeSingle();
+    if (res.error) throw res.error;
+    profile = res.data;
+    if (!profile) throw new Error('Для этой учётной записи нет активного сотрудника в таблице staff.');
+  }
+
+  async function loadAll() {
+    const [s,c,sh,e] = await Promise.all([
+      db.from('staff').select('*').order('queue_order',{ascending:true}).order('name'),
+      db.from('customers').select('*').order('created_at',{ascending:false}),
+      db.from('staff_shifts').select('*').order('starts_at',{ascending:false}),
+      db.from('queue_events').select('*').order('timestamp',{ascending:false}).limit(100)
+    ]);
+    if (s.error) throw s.error;
+    if (c.error) throw c.error;
+    if (sh.error) throw sh.error;
+    staff = s.data || []; customers = c.data || []; shifts = sh.data || [];
+    if (e.error) {
+      const fallback = await db.from('queue_events').select('*').order('created_at',{ascending:false}).limit(100);
+      events = fallback.error ? [] : (fallback.data || []);
+    } else events = e.data || [];
+    await loadPrimaryCursor();
+    renderAll();
+  }
+  async function loadPrimaryCursor() {
+    const { data, error } = await db.from('queue_cursors').select('customer_type,last_staff_id,updated_at').eq('customer_type','primary').maybeSingle();
+    primaryCursorError = !!error;
+    primaryCursor = error ? null : (data || null);
+  }
+
+  function renderPrimaryQueue() {
+    const target = $('primaryManagerQueueContent');
+    if (primaryCursorError) {
+      target.innerHTML = '<p class="muted">Не удалось прочитать курсор первички из базы. Проверьте права SELECT для queue_cursors; следующий менеджер не определён.</p>';
+      return;
+    }
+    const now = Date.now();
+    const activeShifts = shifts.filter(sh => sh.status === 'active' && new Date(sh.starts_at).getTime() <= now && new Date(sh.ends_at).getTime() > now && staff.some(st => st.id === sh.staff_id && st.active && st.role === 'manager'));
+    let managers;
+    if (activeShifts.length) {
+      const seen = new Set();
+      managers = activeShifts.sort((a,b) => Number(a.queue_order ?? 9999) - Number(b.queue_order ?? 9999) || new Date(a.starts_at) - new Date(b.starts_at))
+        .filter(sh => !seen.has(sh.staff_id) && seen.add(sh.staff_id))
+        .map(sh => ({...staff.find(st => st.id === sh.staff_id), primaryOrder: sh.queue_order}));
+    } else {
+      managers = staff.filter(st => st.active && st.role === 'manager').sort((a,b) => Number(a.queue_order ?? 9999) - Number(b.queue_order ?? 9999) || String(a.name).localeCompare(String(b.name), 'ru'));
+    }
+    if (!managers.length) { target.innerHTML = '<p class="muted">Сейчас нет активных менеджеров в порядке первички.</p>'; return; }
+    const lastId = primaryCursor?.last_staff_id || null;
+    const lastIndex = managers.findIndex(m => m.id === lastId);
+    const nextIndex = lastIndex < 0 ? 0 : (lastIndex + 1) % managers.length;
+    target.innerHTML = `<p class="muted">Порядок берётся из активных смен; если активных смен нет — из общего порядка менеджеров.</p>` + managers.map((m,i) => `<div class="row" style="padding:9px 10px;margin:6px 0;border-radius:9px;${i === nextIndex ? 'background:#e8f7ed;border:1px solid #b7e2c5' : 'background:#f7f8fb'}"><strong style="min-width:26px">${i+1}.</strong><span class="grow">${esc(m.name)}</span>${i === nextIndex ? '<span class="pill" style="background:#ccefd7;color:#176337">Следующий по первичке</span>' : ''}</div>`).join('') + `<p class="muted small">Последнее назначение по первичке: ${lastId ? esc(managerName(lastId)) : 'ещё не зафиксировано'}${primaryCursor?.updated_at ? ' · обновлено ' + fmt(primaryCursor.updated_at) : ''}</p>`;
+  }
+
+  function renderAll() { renderPrimaryQueue(); renderQueue(); renderStaff(); renderShifts(); renderHistory(); }
+
+  function renderQueue() {
+    if (!user) return;
+    const filter = $('queueFilter').value;
+    let rows = customers.filter(canSeeCustomer);
+    if (filter === 'admin') rows = rows.filter(c => c.needs_admin);
+    else if (filter !== 'all') rows = rows.filter(c => c.status === filter && !c.needs_admin);
+    rows.sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    $('queueList').innerHTML = rows.length ? rows.map(c => {
+      const mine = c.assigned_staff_id === user.id, isAdmin = adminRole(), type = c.customer_type || 'primary';
+      const deadline = c.response_deadline ? new Date(c.response_deadline).getTime() : null;
+      const remain = deadline ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : null;
+      let buttons = '';
+      if (c.status === 'assigned' && mine) {
+        buttons += `<button class="primary" data-action="accept" data-id="${esc(c.id)}">Принять</button><button data-action="decline" data-id="${esc(c.id)}">Отказаться</button>`;
+      }
+      if (c.status === 'accepted' && (mine || isAdmin)) buttons += `<button data-action="complete" data-id="${esc(c.id)}">Завершить</button>`;
+      if (isAdmin) {
+        buttons += `<button data-action="assign" data-id="${esc(c.id)}">Закрепить / сменить менеджера</button>`;
+        if (!c.needs_admin && c.status !== 'waiting') buttons += `<button data-action="unassign" data-id="${esc(c.id)}">Снять назначение</button>`;
+        if (c.status === 'completed') buttons += `<button data-action="reopen" data-id="${esc(c.id)}">Вернуть в очередь</button>`;
+      }
+      return `<article class="item"><div class="item-top"><div><strong>${esc(c.display_name || 'Без имени')}</strong> <span class="pill ${type === 'secondary' ? 'secondary-type' : 'primary-type'}">${typeName(type)}</span> ${c.needs_admin ? '<span class="pill alert">Нужно решение</span>' : ''}<div class="muted" style="margin-top:5px">${esc(c.note || '')}</div></div><div><span class="pill">${esc(statusName(c))}</span></div></div><div class="muted" style="margin-top:8px">Менеджер: <strong>${esc(managerName(c.assigned_staff_id))}</strong> · Создан: ${fmt(c.created_at)}</div>${c.status === 'assigned' && c.response_deadline ? `<div class="small" style="margin-top:6px">Срок ответа: ${fmt(c.response_deadline)} · <span class="timer" data-deadline="${deadline}">${remain === null ? '' : Math.floor(remain/60) + ':' + String(remain%60).padStart(2,'0')}</span></div>` : ''}<div class="actions">${buttons}</div></article>`;
+    }).join('') : '<p class="muted">Клиентов по этому фильтру нет.</p>';
+
+    $('adminQueue').innerHTML = adminRole() ? '<h2>Клиенты, ожидающие решения администратора</h2>' + (customers.filter(c => c.needs_admin).map(c => `<div class="item"><strong>${esc(c.display_name || 'Без имени')}</strong> · ${typeName(c.customer_type)}<div class="muted">${esc(c.last_assignment_reason || '')}</div><div class="actions"><button data-action="assign" data-id="${esc(c.id)}">Закрепить за менеджером</button><button data-action="unassign" data-id="${esc(c.id)}">Оставить без назначения</button></div></div>`).join('') || '<p class="muted">Таких клиентов нет.</p>') : '';
+  }
+
+  function renderStaff() {
+    const managers = staff.filter(s => s.role === 'manager');
+    $('staffList').innerHTML = adminRole() ? staff.map(s => `<div class="item"><div class="row"><div class="grow"><strong>${esc(s.name)}</strong> <span class="pill">${esc(s.role)}</span> ${s.active ? '' : '<span class="pill alert">Неактивен</span>'}<div class="muted">ID: ${esc(s.id)}</div></div>${s.role === 'manager' ? `<label class="small">Порядок <input type="number" min="1" value="${Number(s.queue_order || 100)}" style="width:85px" data-order="${esc(s.id)}"></label><button data-action="save-order" data-id="${esc(s.id)}">Сохранить</button>` : ''}</div></div>`).join('') : '<p class="muted">Управление доступно администратору и руководителю.</p>';
+    $('shiftStaff').innerHTML = managers.filter(s => s.active).map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('');
+  }
+
+  function renderShifts() {
+    $('shiftList').innerHTML = shifts.length ? shifts.map(s => `<div class="item"><strong>${esc(managerName(s.staff_id))}</strong> · порядок ${esc(s.queue_order)} · ${esc(s.status)}<div class="muted">${fmt(s.starts_at)} — ${fmt(s.ends_at)}</div>${adminRole() && s.status === 'active' ? `<div class="actions"><button data-action="end-shift" data-id="${esc(s.id)}">Завершить смену</button></div>` : ''}</div>`).join('') : '<p class="muted">Смен пока нет.</p>';
+  }
+  function renderHistory() {
+    $('historyList').innerHTML = events.length ? events.map(e => `<div class="item"><strong>${esc(e.event_type || 'Действие')}</strong><div class="muted">Клиент: ${esc(customers.find(c => c.id === e.customer_id)?.display_name || e.customer_id || '—')} · Сотрудник: ${esc(managerName(e.staff_id))} · ${fmt(e.timestamp || e.created_at)}</div><div class="small">${esc(JSON.stringify(e.details || {}))}</div></div>`).join('') : '<p class="muted">История пока пуста или недоступна по текущим правам.</p>';
+  }
+  async function refresh() { try { await loadAll(); } catch (e) { message(e.message || String(e), true); } }
+  async function logEvent(customerId, eventType, details={}) {
+    const { error } = await db.from('queue_events').insert({customer_id:customerId,staff_id:user.id,event_type:eventType,details});
+    if (error) console.warn('Не удалось записать событие:', error.message);
+  }
+
+  async function customerAction(action, id) {
+    const c = customers.find(x => x.id === id); if (!c) return;
+    if (action === 'accept') {
+      const { error } = await db.from('customers').update({status:'accepted',accepted_at:new Date().toISOString(),response_deadline:null,needs_admin:false}).eq('id',id).eq('assigned_staff_id',user.id).eq('status','assigned');
+      if (error) throw error; await logEvent(id,'accepted',{manager_id:user.id});
+    } else if (action === 'decline') {
+      await logEvent(id,'declined',{manager_id:user.id});
+      const { error } = await db.rpc('autoqueue_assign_next',{p_customer_id:id,p_reason:'declined'});
+      if (error) throw error;
+    } else if (action === 'complete') {
+      const { error } = await db.from('customers').update({status:'completed',completed_at:new Date().toISOString(),response_deadline:null}).eq('id',id);
+      if (error) throw error; await logEvent(id,'completed',{by:user.id});
+    } else if (action === 'assign') {
+      const managers = staff.filter(s => s.role === 'manager' && s.active);
+      if (!managers.length) throw new Error('Нет активных менеджеров.');
+      const choice = prompt('Введите номер менеджера:\n' + managers.map((s,i) => `${i+1}. ${s.name}`).join('\n'));
+      if (choice === null) return;
+      const manager = managers[Number(choice)-1]; if (!manager) throw new Error('Неверный номер менеджера.');
+      const { error } = await db.from('customers').update({status:'accepted',assigned_staff_id:manager.id,accepted_at:new Date().toISOString(),response_deadline:null,assignment_attempts:0,attempted_staff_ids:[],needs_admin:false,last_assignment_reason:'manual'}).eq('id',id);
+      if (error) throw error; await logEvent(id,'admin_confirmed_assignment',{manager_id:manager.id,confirmed_by:user.id,accepted_immediately:true});
+    } else if (action === 'unassign') {
+      const { error } = await db.from('customers').update({status:'waiting',assigned_staff_id:null,response_deadline:null,needs_admin:false,last_assignment_reason:'unassigned'}).eq('id',id);
+      if (error) throw error; await logEvent(id,'left_unassigned',{});
+    } else if (action === 'reopen') {
+      const { error } = await db.from('customers').update({status:'waiting',assigned_staff_id:null,response_deadline:null,needs_admin:false,assignment_attempts:0,attempted_staff_ids:[],last_assignment_reason:'reopened'}).eq('id',id);
+      if (error) throw error; await logEvent(id,'reopened',{});
+    }
+    await refresh();
+  }
+
+  $('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    try {
+      const identifier = $('email').value.trim().toLowerCase();
+      const email = identifier.includes('@') ? identifier : `${identifier}@autoqueue.invalid`;
+      const { error } = await db.auth.signInWithPassword({email, password:$('password').value});
+      if (error) throw error;
+      await startApp();
+    } catch (err) { setLoginMessage(err.message || String(err), true); }
+  });
+
+  $('logoutBtn').addEventListener('click', async () => {
+    if (realtime) await db.removeChannel(realtime);
+    await db.auth.signOut(); user=null; profile=null;
+    $('app').classList.add('hidden'); $('loginPanel').classList.remove('hidden'); $('logoutBtn').classList.add('hidden'); $('userLabel').textContent='';
+  });
+
+  async function startApp() {
+    try {
+      await loadProfile();
+      if (!profile) throw new Error('Нет активного профиля сотрудника.');
+      $('loginPanel').classList.add('hidden'); $('app').classList.remove('hidden'); $('logoutBtn').classList.remove('hidden');
+      $('userLabel').textContent = `${profile.name} · ${profile.role}`;
+      document.querySelector('[data-tab="admin"]').classList.toggle('hidden', !adminRole());
+      document.querySelector('[data-tab="shifts"]').classList.toggle('hidden', !adminRole());
+      await loadAll();
+      if (realtime) await db.removeChannel(realtime);
+      realtime = db.channel('autoqueue-live')
+        .on('postgres_changes',{event:'*',schema:'public',table:'customers'},refresh)
+        .on('postgres_changes',{event:'*',schema:'public',table:'staff'},refresh)
+        .on('postgres_changes',{event:'*',schema:'public',table:'staff_shifts'},refresh)
+        .on('postgres_changes',{event:'*',schema:'public',table:'queue_events'},refresh)
+        .on('postgres_changes',{event:'*',schema:'public',table:'queue_cursors'},refresh)
+        .subscribe();
+    } catch (err) {
+      $('app').classList.add('hidden'); $('loginPanel').classList.remove('hidden');
+      setLoginMessage(err.message || String(err), true);
+    }
+  }
+
+  document.querySelectorAll('[data-tab]').forEach(btn => btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active', b === btn));
+    ['queue','admin','shifts','history'].forEach(t => $('tab-'+t).classList.toggle('hidden', t !== btn.dataset.tab));
+  }));
+  $('refreshBtn').addEventListener('click', refresh); $('historyRefresh').addEventListener('click', refresh); $('queueFilter').addEventListener('change', renderQueue);
+
+  $('addCustomerForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!adminRole()) { message('Добавлять клиентов может только администратор или руководитель.', true); return; }
+    try {
+      const { data, error } = await db.from('customers').insert({display_name:$('customerName').value.trim(),note:$('customerNote').value.trim() || null,customer_type:$('customerType').value,status:'waiting',needs_admin:false,assignment_attempts:0,attempted_staff_ids:[]}).select('*').single();
+      if (error) throw error;
+      const assigned = await db.rpc('autoqueue_assign_next',{p_customer_id:data.id,p_reason:'initial'});
+      if (assigned.error) throw assigned.error;
+      $('customerName').value=''; $('customerNote').value=''; message('Клиент добавлен в очередь.'); await refresh();
+    } catch (err) { message(err.message || String(err), true); }
+  });
+
+  $('createManagerForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!adminRole()) { $('createManagerMessage').textContent = 'Недостаточно прав.'; return; }
+    const messageBox = $('createManagerMessage');
+    const button = e.currentTarget.querySelector('button[type="submit"]');
+    button.disabled = true; messageBox.textContent = 'Создаём менеджера...';
+    try {
+      const { data, error } = await db.functions.invoke('create-manager',{body:{name:$('newManagerName').value.trim(),login:$('newManagerLogin').value.trim().toLowerCase(),password:$('newManagerPassword').value}});
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (!data?.success) throw new Error('Ответ сервера: ' + JSON.stringify(data));
+      messageBox.textContent = `Менеджер ${data.manager.name} создан. Логин: ${data.manager.login}`;
+      $('newManagerName').value=''; $('newManagerLogin').value=''; $('newManagerPassword').value='';
+      await refresh();
+    } catch (err) { messageBox.textContent = 'Ошибка: ' + (err.message || String(err)); }
+    finally { button.disabled = false; }
+  });
+
+  $('shiftForm').addEventListener('submit', async e => {
+    e.preventDefault(); if (!adminRole()) return;
+    try {
+      const start = new Date($('shiftStart').value).toISOString();
+      const end = new Date($('shiftEnd').value).toISOString();
+      if (new Date(end) <= new Date(start)) throw new Error('Окончание смены должно быть позже начала.');
+      const { error } = await db.from('staff_shifts').insert({staff_id:$('shiftStaff').value,starts_at:start,ends_at:end,status:'active',created_by:user.id,queue_order:Number($('shiftOrder').value)});
+      if (error) throw error;
+      message('Смена сохранена.'); await refresh();
+    } catch (err) { message(err.message || String(err), true); }
+  });
+
+  document.addEventListener('click', async e => {
+    const btn = e.target.closest('[data-action]'); if (!btn) return;
+    const action = btn.dataset.action, id = btn.dataset.id;
+    try {
+      if (action === 'save-order') {
+        const field = document.querySelector(`[data-order="${CSS.escape(id)}"]`); const n = Number(field?.value);
+        if (!Number.isInteger(n) || n < 1) throw new Error('Порядок должен быть целым числом от 1.');
+        const { error } = await db.from('staff').update({queue_order:n}).eq('id',id); if (error) throw error;
+        message('Порядок сохранён.'); await refresh();
+      } else if (action === 'end-shift') {
+        const { error } = await db.from('staff_shifts').update({status:'completed',ends_at:new Date().toISOString()}).eq('id',id); if (error) throw error; await refresh();
+      } else await customerAction(action,id);
+    } catch (err) { message(err.message || String(err), true); }
+  });
+
+  function updateTimers() {
+    document.querySelectorAll('[data-deadline]').forEach(el => {
+      const seconds = Math.max(0, Math.ceil((Number(el.dataset.deadline) - Date.now()) / 1000));
+      el.textContent = Math.floor(seconds/60) + ':' + String(seconds%60).padStart(2,'0');
+    });
+  }
+  setInterval(updateTimers,1000);
+  db.auth.getSession().then(({data,error}) => { if (error) console.warn(error.message); if (data?.session) startApp(); });
+  db.auth.onAuthStateChange((_event,session) => { if (session && !profile) setTimeout(startApp,0); });
+})();
+</script>
+</body>
+</html>
