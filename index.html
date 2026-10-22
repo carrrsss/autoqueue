@@ -274,7 +274,7 @@
       const { data, error } = await db.functions.invoke('create-manager',{body:{name:$('newManagerName').value.trim(),login:$('newManagerLogin').value.trim().toLowerCase(),password:$('newManagerPassword').value}});
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      if (!data?.success) throw new Error('Сервер не подтвердил создание.');
+      if (!data?.success) throw new Error('Ответ сервера: ' + JSON.stringify(data));
       messageBox.textContent = `Менеджер ${data.manager.name} создан. Логин: ${data.manager.login}`;
       $('newManagerName').value=''; $('newManagerLogin').value=''; $('newManagerPassword').value='';
       await refresh();
